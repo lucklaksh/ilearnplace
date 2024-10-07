@@ -1,6 +1,15 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
-  }
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@assets/*": ["assets/*"]
+    },
+    "jsx": "react-native"  // Make sure this is set for React Native projects
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],  // Adjust according to your source directories
+  "exclude": ["node_modules"]  // Exclude node_modules from type checking
 }

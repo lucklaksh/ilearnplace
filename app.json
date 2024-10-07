@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "IT-milian",
-    "slug": "IT-milian",
+    "name": "iLearnPlace",
+    "slug": "iLearnPlace",
+    "scheme": "ilearnplace",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,10 +19,33 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.lakshmanlucky.iLearnPlace",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "ec3c97ca-9e3a-4e34-a85f-588121c59afb"
+      }
     }
   }
 }
