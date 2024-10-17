@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient"; // Make sure expo-linear-gradient is installed
 import Login from "@components/ilp/Login"; // Ensure correct path for Login component
 import { Border } from "../../../../GlobalStyles"; // Ensure that GlobalStyles contains the required 'Border'
+import { Stack } from "expo-router";
 
 const MobileLogin = () => {
   return (
@@ -12,12 +13,14 @@ const MobileLogin = () => {
       locations={[0.5, 1]} // Adjust gradient stops for desired effect
       colors={["rgba(0, 246, 255, 0.2)", "rgba(0, 148, 153, 0.2)"]} // Customize colors for a good UI feel
     >
+      {/* Disable back navigation by setting headerShown to false */}
+      <Stack.Screen options={{ title: "ilearnPlace", headerShown: false }} />
       <Image
         style={styles.transparentLogoIcon}
         contentFit="cover" // Expo-image-specific prop for image scaling
         source={require("@assets/transparent-logo1.png")} // Ensure the image path is correct
       />
-      <Login /> 
+      <Login />
     </LinearGradient>
   );
 };

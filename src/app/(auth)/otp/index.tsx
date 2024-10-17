@@ -1,13 +1,31 @@
 import * as React from "react";
-import { Text, StyleSheet, View, Pressable, TextInput } from "react-native";
+import { Text, StyleSheet, View, Pressable, TextInput, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, Stack } from "expo-router";
 import { FontFamily, FontSize, Color, Border, Padding } from "../../../../GlobalStyles";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Otp = () => {
   const router = useRouter();
   const [otp, setOtp] = React.useState<string[]>(["", "", "", "", "", ""]);
   const otpInputs = React.useRef<TextInput[]>([]);
+  const [phoneNumber, setPhoneNumber] = React.useState<string>("");
+
+  // Fetch the phone number from AsyncStorage
+  React.useEffect(() => {
+    const fetchPhoneNumber = async () => {
+      try {
+        const storedPhoneNumber = await AsyncStorage.getItem('phoneNumber');
+        if (storedPhoneNumber) {
+          setPhoneNumber(storedPhoneNumber);
+        }
+      } catch (error) {
+        console.error("Failed to fetch phone number:", error);
+      }
+    };
+    
+    fetchPhoneNumber();
+  }, []);
 
   // Handle OTP input changes and auto-focus the next input
   const handleOtpChange = (text: string, index: number) => {
@@ -18,6 +36,8 @@ const Otp = () => {
       if (text && index < otp.length - 1) {
         otpInputs.current[index + 1]?.focus(); // Move to the next input
       }
+    } else {
+      Alert.alert("Invalid Input", "Please enter only numeric values.");
     }
   };
 
@@ -32,6 +52,72 @@ const Otp = () => {
 
   // Check if the OTP is complete
   const isOtpComplete = otp.every((digit) => digit !== "");
+
+  // Handle OTP verification
+  const handleVerify = async () => {
+    const otpString = otp.join(""); // Combine OTP array into string
+    if (!isOtpComplete) {
+      Alert.alert("Incomplete OTP", "Please enter the full 6-digit OTP.");
+      return;
+    }
+    
+    try {
+      const response = await fetch("https://ilearnpoint.com/ilpapi/otp/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contact: phoneNumber,
+          otp: otpString,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Save token in AsyncStorage
+        await AsyncStorage.setItem('authToken', data.token);
+        // Navigate to the next screen or perform any further actions
+        router.push("/loginSuccessfull");
+      } else {
+        Alert.alert("Verification Failed", "Invalid OTP. Please try again.");
+        setOtp(["", "", "", "", "", ""]); // Clear the OTP array
+        otpInputs.current[0]?.focus(); // Focus the first input for user to retry
+      }
+    } catch (error) {
+      Alert.alert("Error", "An error occurred during verification. Please try again.");
+    }
+  };
+
+  // Handle Resend OTP
+  const handleResend = async () => {
+    try {
+      // Sending POST request to the OTP API
+      const response = await fetch("https://ilearnpoint.com/ilpapi/otp/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ contact: phoneNumber }),
+      });
+  
+      const data = await response.json();
+  
+      if (data.success) {
+        // Notify user that OTP has been resent
+        console.log(data.otp);
+        Alert.alert("OTP Resent", "A new OTP has been sent to your phone.");
+        // Reset the OTP inputs
+        setOtp(["", "", "", "", "", ""]);
+        otpInputs.current[0]?.focus(); // Focus the first input for user to enter the new OTP
+      } else {
+        Alert.alert("Error", "Failed to generate OTP. Please try again.");
+      }
+    } catch (error) {
+      Alert.alert("Error", "An error occurred while generating OTP. Please try again.");
+    }
+  };
 
   return (
     <LinearGradient
@@ -53,7 +139,7 @@ const Otp = () => {
               style={styles.otpInputBox}
               value={digit}
               onChangeText={(text) => handleOtpChange(text, index)}
-              onKeyPress={(e) => handleKeyPress(e, index)} // Handle backspace navigation
+              onKeyPress={(e) => handleKeyPress(e, index)}
               keyboardType="number-pad"
               maxLength={1}
               textAlign="center"
@@ -63,15 +149,17 @@ const Otp = () => {
 
         <Pressable
           style={[styles.button, styles.buttonFlexBox, !isOtpComplete && styles.buttonDisabled]}
-          onPress={() => router.push("/loginSuccessfull")}
-          disabled={!isOtpComplete} // Disable if OTP is incomplete
+          onPress={handleVerify}
+          disabled={!isOtpComplete}
         >
           <Text style={styles.label}>Verify</Text>
         </Pressable>
 
-        <Text style={[styles.resendCode, styles.resendCodeTypo]}>
-          Resend Code
-        </Text>
+        <Pressable onPress={handleResend}>
+          <Text style={[styles.resendCode, styles.resendCodeTypo]}>
+            Resend Code
+          </Text>
+        </Pressable>
       </View>
     </LinearGradient>
   );
@@ -80,8 +168,8 @@ const Otp = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center", // Center vertically
-    alignItems: "center", // Center horizontally
+    justifyContent: "center",
+    alignItems: "center",
   },
   resendCodeTypo: {
     fontFamily: FontFamily.plusJakartaSansSemiBold,
@@ -92,15 +180,15 @@ const styles = StyleSheet.create({
     fontSize: FontSize.size_xl,
     lineHeight: 32,
     color: Color.blue100,
-    marginBottom: 20, // Space between title and OTP inputs
+    marginBottom: 20,
     textAlign: "center",
     width: 326,
   },
   otpInputContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 40, // Space between OTP inputs and button
-    width: "80%", // Adjust width to ensure good spacing
+    marginBottom: 40,
+    width: "80%",
   },
   otpInputBox: {
     borderRadius: Border.br_5xs,
@@ -118,7 +206,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.materialThemeLabelLarge_size,
     lineHeight: 28,
     color: Color.red100,
-    marginTop: 20, // Space between button and Resend Code
+    marginTop: 20,
     textAlign: "center",
   },
   label: {
@@ -134,12 +222,12 @@ const styles = StyleSheet.create({
     borderRadius: Border.br_xs,
     paddingHorizontal: Padding.p_5xs,
     paddingVertical: Padding.p_xs,
-    width: 200, // Adjusted button width
+    width: 200,
     justifyContent: "center",
     alignItems: "center",
   },
   buttonDisabled: {
-    backgroundColor: Color.gray100, // Disable button style
+    backgroundColor: Color.gray100,
   },
   buttonFlexBox: {
     flexDirection: "row",

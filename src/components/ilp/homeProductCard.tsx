@@ -12,25 +12,27 @@ interface ProductCardProps {
 }
 
 const HomeProductCard: React.FC<ProductCardProps> = ({ title, image, price, rating }) => {
-    const router = useRouter()
+    const router = useRouter();
   return (
     <TouchableOpacity style={styles.card} onPress={() => router.push('/product')}>
       <Image source={image} style={styles.productImage} />
 
       <View style={styles.detailsContainer}>
-        <Text style={styles.title} numberOfLines={2}>
-          {title}
-        </Text>
-        <View style={styles.priceContainer}>
+        <View style={styles.textContainer}>
+          <Text style={styles.title} numberOfLines={2}>
+            {title}
+          </Text>
           <Text style={styles.price}>₹ {price} INR</Text>
+        </View>
+        <View style={styles.rightContainer}>
           <View style={styles.ratingContainer}>
             <Text style={styles.rating}>{rating}</Text>
             <FontAwesome name="star" size={16} color="green" />
           </View>
+          <TouchableOpacity style={styles.button} onPress={() => router.push('/payment1')}>
+            <Text style={styles.buttonText}>🛒</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.button} onPress={()=> router.push('/payment1')}>
-          <Text style={styles.buttonText}>Buy Now  🛒</Text>
-        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -52,12 +54,18 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    height: 100,
+    height: 150, // Larger image height for 2/3 of the card
     resizeMode: 'contain',
     backgroundColor: '#f9f9f9', // Light background for image
   },
   detailsContainer: {
     padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  textContainer: {
+    width: '60%', // Title and price take 60% of the card's width
   },
   title: {
     fontSize: 14,
@@ -65,16 +73,16 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 5,
   },
-  priceContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
   price: {
-    fontSize: 16,
+    fontSize: 18, // Bigger font for the price
     fontWeight: 'bold',
     color: '#E53935', // Red color for price
+  },
+  rightContainer: {
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    width: '40%', // Right side for rating and button occupies 40%
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -83,6 +91,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 5,
     paddingVertical: 2,
+    marginBottom: 5,
   },
   rating: {
     fontSize: 14,
@@ -90,14 +99,15 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   button: {
-    backgroundColor: '#FF9800',
+    backgroundColor: '#FFC107', // Matching the card border color for consistency
     borderRadius: 5,
-    padding: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4, // Reduced padding for a more compact appearance
     alignItems: 'center',
   },
   buttonText: {
-    fontSize: 18,
-    color: '#ffffff', 
+    fontSize: 16, // Slightly smaller text size for the button
+    color: '#333', // Use a subtle color instead of pure white
   },
 });
 

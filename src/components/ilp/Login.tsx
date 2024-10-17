@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Text, StyleSheet, View, TextInput, Pressable, Alert } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   FontFamily,
   Border,
@@ -13,7 +14,7 @@ import {
 
 const Login = () => {
   const [frameDropdownOpen, setFrameDropdownOpen] = useState(false);
-  const [frameDropdownValue, setFrameDropdownValue] = useState<string | null>(null);
+  const [frameDropdownValue, setFrameDropdownValue] = useState<string | null>("+91");
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const router = useRouter();
 
@@ -21,15 +22,39 @@ const Login = () => {
     return /^[0-9]{10,12}$/.test(number);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (frameDropdownValue && phoneNumber && isValidPhoneNumber(phoneNumber)) {
-      router.push('/otp');
+      try {
+        // Sending POST request to the OTP API
+        const response = await fetch("https://ilearnpoint.com/ilpapi/otp/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ contact: phoneNumber }), // Sending the phone number in the request body
+        });
+  
+        // Parse the JSON response
+        const data = await response.json();
+  
+        if (data.success) {
+          // If OTP generation is successful, navigate to the OTP screen
+          await AsyncStorage.setItem('phoneNumber', phoneNumber);
+          console.log(data.otp);
+          router.push("/otp");
+        } else {
+          // Handle failure case
+          Alert.alert("Error", "Failed to generate OTP. Please try again.");
+        }
+      } catch (error) {
+        // Handle any network or other errors
+        Alert.alert("Error", "An error occurred while generating OTP. Please try again.");
+      }
     } else {
       Alert.alert(
         "Invalid Input",
         "Please select a country code and enter a valid phone number."
       );
-      router.push('/otp');
     }
   };
 
@@ -53,7 +78,7 @@ const Login = () => {
             setOpen={setFrameDropdownOpen}
             value={frameDropdownValue}
             setValue={setFrameDropdownValue}
-            placeholder="+62"
+            placeholder="+91"
             items={[
               { label: "+62", value: "+62" },
               { label: "+91", value: "+91" },
@@ -83,7 +108,7 @@ const Login = () => {
         <Text style={styles.label}>Send OTP</Text>
       </Pressable>
 
-      <View style={styles.dontHaveAccountParent}>
+      {/* <View style={styles.dontHaveAccountParent}>
         <Text style={[styles.dontHaveAccount, styles.accountTypo]}>
           Don’t have an account?
         </Text>
@@ -92,7 +117,7 @@ const Login = () => {
             Create Account
           </Text>
         </Pressable>
-      </View>
+      </View> */}
     </View>
   );
 };
