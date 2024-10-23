@@ -26,7 +26,7 @@ const Login = () => {
     if (frameDropdownValue && phoneNumber && isValidPhoneNumber(phoneNumber)) {
       try {
         // Sending POST request to the OTP API
-        const response = await fetch("https://ilearnpoint.com/ilpapi/otp/generate", {
+        const response = await fetch("http://65.0.178.227:8000/ilpapi/otp/generate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

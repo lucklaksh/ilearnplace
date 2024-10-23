@@ -17,30 +17,44 @@ const useTokenVerification = () => {
   useEffect(() => {
     const checkToken = async () => {
       try {
-        const token = await AsyncStorage.getItem("authToken"); 
-        // const token = 'abc'
-        if (token) {
-          const response = await fetch("https://ilearnpoint.com/ilpapi/token/validate", {
+        const token = await AsyncStorage.getItem("authToken"); // Get token from storage
+        const contact = await AsyncStorage.getItem("phoneNumber"); // Get contact from storage
+
+        console.log("Token:", token);
+        console.log("Contact:", contact);
+
+        if (token && contact) {
+          const response = await fetch("http://65.0.178.227:8000/ilpapi/token/validate", {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
+            body: JSON.stringify({
+              jwt_token: token,  // Send token
+              contact: contact,  // Send contact info
+            }),
           });
 
           if (response.ok) {
-            setIsValid(true);
-            router.push("/homeScreen"); // Navigate to home screen if token is valid
+            const data = await response.json();
+            if (data.sucess) {
+              setIsValid(true);
+              router.push("/homeScreen"); // Navigate to home screen if token is valid
+            } else {
+              console.warn("Token is invalid, navigating to MobileLogin.");
+              router.push("/mobileLogin"); // Navigate to login on invalid token
+            }
           } else {
-            console.warn("Token is invalid, navigating back to MobileLogin.");
-            router.push("/mobileLogin"); // Navigate to login screen on invalid token
+            console.warn("Token validation failed, navigating to MobileLogin.");
+            router.push("/mobileLogin"); // Navigate to login on error
           }
         } else {
-          console.warn("No token found, navigating back to MobileLogin.");
-          router.push("/mobileLogin"); // Navigate to login screen if no token
+          console.warn("No token or contact found, navigating to MobileLogin.");
+          router.push("/mobileLogin"); // Navigate to login if no token or contact
         }
       } catch (error) {
         console.error("Token verification failed:", error);
+        router.push("/mobileLogin"); // Navigate to login on error
       } finally {
         setLoading(false); // Set loading to false after checking the token
       }

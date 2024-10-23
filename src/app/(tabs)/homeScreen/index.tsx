@@ -1,4 +1,6 @@
 import React from "react";
+import { useEffect, useState } from "react";
+
 import {
   View,
   Text,
@@ -10,7 +12,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Header from "@components/ilp/headerHomepage";
-import ProductCard from "@components/ilp/productCard";
+import ProductList from "@components/ilp/productCard";
 import ImageGalleryCard from "@components/ilp/galaryCard";
 import Footer from "@components/ilp/footer";
 import { Tabs, Stack, router } from 'expo-router';
@@ -34,7 +36,15 @@ const ImageCard: React.FC<{ source: any }> = ({ source }) => {
 };
 
 const HomePage: React.FC = () => {
-  const products = [
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [posters, setPosters] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+
+
+  const defaultProducts = [
     {
         title: 'Military Jeep',
         price: '2167',
@@ -60,15 +70,92 @@ const HomePage: React.FC = () => {
         image: require('@assets/poster2.png'),
     },
 ];
-  const posters = [
+  const defaultPosters = [
     { id: '1', src: require('@assets/poster2.png'), title: 'Poster 1' },
     { id: '2', src: require('@assets/poster4.png'), title: 'Poster 2' },
     { id: '3', src: require('@assets/poster3.png'), title: 'Poster 3' },
   ];
 
+  const defaultTestimonials = [
+    {
+      image: require('@assets/poster2.png'),
+      content: '"Inspire children to think for themselves, not just follow what they are told."',
+    },
+    {
+      image: require('@assets/poster2.png'),
+      content: '"Every child is an artist. The problem is how to remain an artist once we grow up."',
+    },
+    {
+      image: require('@assets/poster2.png'),
+      content: '"It is easier to build strong children than to repair broken men."',
+    },
+  ];
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('http://65.0.178.227:8000/ilpapi/homepage');
+        if (response.ok) {
+          const data = await response.json();
+          setMediaFiles(data.media_files);
+          
+          // Filter for posters
+          const filteredPosters = data.media_files
+            .filter(media => media.category === 'poster')
+            .map(media => ({
+              id: media.id.toString(), // Ensure id is a string
+              src: { uri: media.media_url }, // Format for React Native's Image component
+              title: media.media_name, // Use media_name as the title
+            }));
+  
+          // Map the products data from API response
+          const productsFromApi = data.products.map(product => ({
+            title: product.level_name, // Maps to title
+            price: product.price,       // Maps to price
+            rating: product.ratings || 'N/A', // Use a default value if ratings are null
+            image: { uri: "https://tse4.mm.bing.net/th?id=OIP.otL_xl9GgC9YS2m4ObNdwgHaHa&pid=Api&P=0&h=180" } // Use image URLs directly
+          }));
+
+          const testimonialsFromApi = data.feedbacks.map(feedback => ({
+            id: feedback.id.toString(), // Ensure id is a string
+            image: { uri: feedback.media_url }, // Use media_url for the image
+            content: feedback.review_description, // Map review_description to content
+          }));
+  
+          // Set the filtered posters and products
+          setPosters(filteredPosters); 
+          setProducts(productsFromApi); 
+          setFeedbacks(testimonialsFromApi);
+          
+  
+        } else {
+          console.error('Error fetching data, using default values.');
+          setProducts(defaultProducts);
+          setPosters(defaultPosters); 
+          setFeedbacks(defaultTestimonials);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        // Set default values if there is an error
+        setProducts(defaultProducts);
+        setPosters(defaultPosters); 
+        setFeedbacks(defaultTestimonials);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <Text>Loading...</Text>;
+  }
+
   const handlePosterPress = (index: number) => {
     console.log(`Poster ${index + 1} clicked: ${posters[index].title}`);
   };
+
 
   return (
     <LinearGradient
@@ -117,27 +204,11 @@ const HomePage: React.FC = () => {
 
           {/* Top Picks Section */}
           <Text style={styles.sectionTitle}>Top Picks</Text>
-          <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
-            <ProductCard
-              image={require('@assets/poster2.png')}
-              title="Battle Field Military Jeep"
-              price="2167"
-              rating="4.7"
-            />
-            <ProductCard
-              image={require('@assets/poster2.png')}
-              title="Battle Field Military Jeep"
-              price="2167"
-              rating="4.7"
-            />
-            <ProductCard
-              image={require('@assets/poster2.png')}
-              title="Battle Field Military Jeep"
-              price="2167"
-              rating="4.7"
-            />
-          </ScrollView>
-
+          <ProductList 
+            products={products} 
+            onPosterPress={(index) => console.log(`Pressed product at index ${index}`)} 
+          />
+          
           <ScrollView  horizontal={true} showsHorizontalScrollIndicator={false}>
           
                 {products.map((product, index) => (
@@ -158,20 +229,15 @@ const HomePage: React.FC = () => {
           </Text>
           <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
             <View style={styles.storySection}>
-              <ImageGalleryCard
-                image={require('@assets/poster2.png')}
-                content='"Inspire children to think for themselves, not just follow what they are told."'
-              />
-              <ImageGalleryCard
-                image={require('@assets/poster2.png')}
-                content='"Inspire children to think for themselves, not just follow what they are told."'
-              />
-              <ImageGalleryCard
-                image={require('@assets/poster2.png')}
-                content='"Inspire children to think for themselves, not just follow what they are told."'
-              />
+                {feedbacks.map((feedback) => (
+                    <ImageGalleryCard
+                        key={feedback.id} // Ensure each card has a unique key
+                        image={feedback.image} // Assuming feedback.image contains the image source
+                        content={feedback.content} // Feedback content
+                    />
+                ))}
             </View>
-          </ScrollView>
+        </ScrollView>
 
           <Image 
           source={require('@assets/quote.jpg')} 

@@ -1,16 +1,63 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Pressable, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, ActivityIndicator } from 'react-native';
+import { useRouter, Stack } from 'expo-router';
 import { LinearGradient } from "expo-linear-gradient";
-import Header from "@components/ilp/headerHomepage";
-import { Tabs , Stack, router} from 'expo-router';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function GameSelection() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [levels, setLevels] = useState([]);
+  const [selectedGame, setSelectedGame] = useState(null); // State for selected game
 
-  const handlePress = () => {
-    router.push('/product');
+  const fetchLevels = async () => {
+    try {
+      setLoading(true);
+
+      // Retrieve data from AsyncStorage
+      const allInfo = await AsyncStorage.getItem('allInfo');
+      const selectedGameData = await AsyncStorage.getItem('selectedGame');
+
+      if (!allInfo || !selectedGameData) {
+        throw new Error('Missing game data or selectedGame');
+      }
+
+      // Parse the stored allInfo data
+      const parsedAllInfo = JSON.parse(allInfo);
+      const parsedSelectedGame = JSON.parse(selectedGameData);
+
+      // Set selected game in state
+      setSelectedGame(parsedSelectedGame);
+
+      // Find the game with the matching selectedGameId
+      const games = parsedAllInfo.game.find(game => game.id === parseInt(parsedSelectedGame.id));
+
+      if (!games) {
+        throw new Error('Game not found');
+      }
+
+      // Set levels from the selected game
+      setLevels(games.levels);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLevels();
+  }, []);
+
+  const handlePress = async (level) => {
+    try {
+      console.log(level)
+      await AsyncStorage.setItem('selectedlevel', JSON.stringify(level));
+      router.push('/product'); 
+    } catch (error) {
+      console.error('Failed to store level:', error);
+    }
   };
 
   return (
@@ -19,76 +66,31 @@ export default function GameSelection() {
       locations={[0.5, 1]}
       colors={["rgba(0, 246, 255, 0.2)", "rgba(0, 148, 153, 0.2)"]}
     >
-
-    <Stack.Screen
-        options={{
-          headerShown: true,
-          headerTitle: () => (
-            <Header
-              logoText="ILearn.Place" // Custom text in the header
-            />
-          ),
-          headerRight: () => (
-            <Pressable onPress={() => router.push('profileScreen')} style={{ paddingRight: 10 }}>
-              <Image
-                source={require("@assets/icon-profile.png")} // Profile image URL
-                style={{ width: 30, height: 30, borderRadius: 15 }} // Styling the profile image
-              />
-            </Pressable>
-          ),
-          headerStyle: {
-            backgroundColor: '#6495ED', 
-          },
-          headerTitleAlign: 'center', // Center the title
-          headerTintColor: '#fff', // Text color for back button and title
-        }}
-      />
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Introducing "Battle Field"</Text>
-      <Text style={styles.subtitle}>A Revolutionary STEM Gaming Experience</Text>
-
-      <View style={styles.cardContainer}>
-        <TouchableOpacity style={styles.card} onPress={handlePress}>
-          <Image source={require('@assets/image-level-lock.png')} style={styles.cardImage} />
-          <Text style={styles.cardText}>Robo Car</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.card} onPress={handlePress}>
-          <Image source={require('@assets/image-level-lock.png')} style={styles.cardImage} />
-          <Text style={styles.cardText}>Military Jeep</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.card} onPress={handlePress}>
-          <Image source={require('@assets/image-level-lock.png')} style={styles.cardImage} />
-          <Text style={styles.cardText}>Drone</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.card} onPress={handlePress}>
-          <Image source={require('@assets/image-level-lock.png')} style={styles.cardImage} />
-          <Text style={styles.cardText}>Tank</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.card} onPress={handlePress}>
-          <Image source={require('@assets/image-level-lock.png')} style={styles.cardImage} />
-          <Text style={styles.cardText}>Helicopter</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.card} onPress={handlePress}>
-          <Image source={require('@assets/image-level-lock.png')} style={styles.cardImage} />
-          <Text style={styles.cardText}>Submarine</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.card} onPress={handlePress}>
-          <Image source={require('@assets/image-level-lock.png')} style={styles.cardImage} />
-          <Text style={styles.cardText}>Bike</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.card} onPress={handlePress}>
-          <Image source={require('@assets/image-level-lock.png')} style={styles.cardImage} />
-          <Text style={styles.cardText}>Scooter</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      <Stack.Screen options={{ title: 'Games' }} />
+      <ScrollView contentContainerStyle={styles.container}>
+        {loading ? (
+          <ActivityIndicator size="large" color="#00BFFF" />
+        ) : error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : (
+          <>
+            {selectedGame && ( // Check if selectedGame is available
+              <>
+                <Text style={styles.title}>Introducing {selectedGame.game_type}!</Text>
+                <Text style={styles.subtitle}>A Revolutionary STEM Gaming Experience</Text>
+              </>
+            )}
+            <View style={styles.cardContainer}>
+              {levels.map(level => (
+                <TouchableOpacity key={level.id} style={styles.card} onPress={() => handlePress(level)}>
+                  <Image source={{ uri: level.photo }} style={styles.cardImage} />
+                  <Text style={styles.cardText}>{level.level_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+      </ScrollView>
     </LinearGradient>
   );
 }
@@ -128,6 +130,11 @@ const styles = StyleSheet.create({
   cardText: {
     fontSize: 16,
     marginTop: 10,
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 20,
   },
   page: {
     flex: 1,

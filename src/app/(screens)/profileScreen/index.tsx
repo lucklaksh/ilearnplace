@@ -1,26 +1,91 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Dimensions, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
 const ProfileScreen = () => {
-  const router= useRouter()
+  const [profileData, setProfileData] = useState(null); // State to store profile data
+  const [addressess, setAddressess] = useState([])
+  const [Token, setToken] = useState(null); // State to store token
+  const router = useRouter();
+
+  useEffect(() => {
+    // Function to fetch the token from AsyncStorage
+    const getTokenAndFetchProfile = async () => {
+      try {
+        const storedToken = await AsyncStorage.getItem('authToken'); 
+        // const storedToken = await AsyncStorage.getItem('phoneNumber');
+        if (storedToken) {
+          setToken(storedToken); // Store token in state
+          fetchProfileData(storedToken); // Fetch profile data using the token
+        } else {
+          console.error('No token found');
+        }
+      } catch (error) {
+        console.error('Error fetching token:', error);
+      }
+    };
+
+    // Fetch profile data from API
+    const fetchProfileData = async (token) => {
+      try {
+        console.log(token)
+        const response = await fetch('http://65.0.178.227:8000/ilpapi/create/student', {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `${token}`, // Use the token passed as an argument
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setProfileData(data.stu); // Assuming `data.stu` contains the relevant profile data
+          setAddressess(data.add);
+          const profile = JSON.stringify(data.stu)
+          const address = JSON.stringify(data.add)
+          await AsyncStorage.setItem('address', address);
+          await AsyncStorage.setItem('profile', profile);
+        } else {
+          console.error('Error fetching profile data');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+    getTokenAndFetchProfile(); // Call the function to get the token and fetch data
+  }, []);
+
+  if (!profileData) {
+    // Show a loading message while the data is being fetched
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+  console.log(addressess)
+  const combinedAddress = addressess.length > 0 ? addressess.map(address => 
+    `${address.address}, ${address.district}, ${address.state}, ${address.pincode}`
+  ).join(' | ') : 'No Address Provided';
+
   return (
     <ScrollView style={styles.container}>
       <Stack.Screen options={{ title: 'Profile' }} />
+      
       {/* Gradient Header */}
       <LinearGradient colors={['#00aaff', '#0077cc']} style={styles.header}>
         {/* Profile Image Section */}
         <View style={styles.profileContainer}>
           <Image
-            source={{ uri: 'https://via.placeholder.com/150' }} // Replace with actual profile image
+            source={{ uri: `http://65.0.178.227:8000/ilpapi${profileData.photo}` }} // Replace with actual profile image from API
             style={styles.profileImage}
           />
           {/* Pencil Icon for editing profile image */}
-          <TouchableOpacity style={styles.editIcon} onPress={()=>router.push('/editProfile')}>
+          <TouchableOpacity style={styles.editIcon} onPress={() => router.push('/editProfile')}>
             <MaterialIcons name="edit" size={24} color="#2575fc" />
           </TouchableOpacity>
         </View>
@@ -28,9 +93,9 @@ const ProfileScreen = () => {
 
       {/* Name, Email, and Phone Number */}
       <View style={styles.profileInfo}>
-        <Text style={styles.nameText}>Puerto Rico</Text>
-        <Text style={styles.contactText}>youremail@domain.com</Text>
-        <Text style={styles.contactText}>+101 234 567 89</Text>
+        <Text style={styles.nameText}>{profileData.name || 'No Name'}</Text>
+        <Text style={styles.contactText}>{profileData.email || 'No Email'}</Text>
+        <Text style={styles.contactText}>{profileData.contact || 'No Contact'}</Text>
       </View>
 
       {/* Address Section */}
@@ -38,16 +103,14 @@ const ProfileScreen = () => {
         <Text style={styles.sectionTitle}>Address</Text>
         <View style={styles.card}>
           <View style={styles.addressHeader}>
-            <Text style={styles.addressTitle}>Home Address</Text>
-            <TouchableOpacity onPress={()=> router.push('/addAddress')}>
+            <Text style={styles.addressTitle}>Address</Text>
+            <TouchableOpacity onPress={() => router.push('/addAddress')}>
               <MaterialIcons name="edit" size={24} color="#2575fc" />
             </TouchableOpacity>
           </View>
           <View style={styles.divider} />
           <View style={styles.addressContent}>
-            <Text style={styles.addressText}>#11, ABC Layout, Xyz layout, BN pura</Text>
-            <Text style={styles.addressText}>Bangalore, Karnataka</Text>
-            <Text style={styles.addressText}>PIN Code: 560098</Text>
+            <Text style={styles.addressText}>{combinedAddress}</Text>
           </View>
         </View>
       </View>
@@ -71,7 +134,7 @@ const styles = StyleSheet.create({
   },
   profileContainer: {
     position: 'absolute',
-    top: 130, // Adjust to position half of the profile image below the header
+    top: 130,
     zIndex: 2,
     alignItems: 'center',
   },
@@ -93,7 +156,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
   profileInfo: {
-    marginTop: 110, // Adjust for space between the profile image and text (name, email, phone)
+    marginTop: 110,
     alignItems: 'center',
   },
   nameText: {
@@ -110,7 +173,7 @@ const styles = StyleSheet.create({
   },
   sectionWrapper: {
     paddingHorizontal: 20,
-    marginTop: 30, // Add more space between the profile info and address section
+    marginTop: 30,
   },
   sectionTitle: {
     fontSize: 20,
@@ -151,6 +214,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#555',
     marginBottom: 5,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

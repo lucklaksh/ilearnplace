@@ -62,7 +62,7 @@ const Otp = () => {
     }
     
     try {
-      const response = await fetch("https://ilearnpoint.com/ilpapi/otp/verify", {
+      const response = await fetch("http://65.0.178.227:8000/ilpapi/otp/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -78,6 +78,7 @@ const Otp = () => {
       if (data.success) {
         // Save token in AsyncStorage
         await AsyncStorage.setItem('authToken', data.token);
+        console.log(data.token)
         // Navigate to the next screen or perform any further actions
         router.push("/loginSuccessfull");
       } else {
@@ -94,7 +95,7 @@ const Otp = () => {
   const handleResend = async () => {
     try {
       // Sending POST request to the OTP API
-      const response = await fetch("https://ilearnpoint.com/ilpapi/otp/generate", {
+      const response = await fetch("http://65.0.178.227:8000/ilpapi/otp/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
