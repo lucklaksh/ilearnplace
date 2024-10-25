@@ -9,6 +9,8 @@ import {
   ScrollView,
   Image,
   Pressable,
+  ActivityIndicator,
+  Alert
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Header from "@components/ilp/headerHomepage";
@@ -19,6 +21,7 @@ import { Tabs, Stack, router } from 'expo-router';
 import ImageSlider from "@components/ilp/imageSlider";
 import ProductFooter from "@/components/ilp/productFooter";
 import HomeProductCard from "@/components/ilp/homeProductCard";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const getGreetingMessage = () => {
   const currentHour = new Date().getHours();
@@ -41,6 +44,7 @@ const HomePage: React.FC = () => {
   const [products, setProducts] = useState([]);
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
 
 
@@ -93,65 +97,95 @@ const HomePage: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true); // Start loading state
       try {
-        const response = await fetch('http://65.0.178.227:8000/ilpapi/homepage');
+        const token = await AsyncStorage.getItem('authToken'); // Retrieve the token from AsyncStorage
+        if (!token) {
+          Alert.alert('Error', 'You must be logged in to access game categories.');
+          return;
+        }
+        const response = await fetch('http://65.0.178.227:8000/ilpapi/allstudenthomeinfo', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `${token}`, // Use Bearer token format
+            },
+          });
+  
         if (response.ok) {
           const data = await response.json();
-          setMediaFiles(data.media_files);
-          
+          setMediaFiles(data.home_media.media_files);
+
           // Filter for posters
-          const filteredPosters = data.media_files
+          const filteredPosters = data.home_media.media_files
             .filter(media => media.category === 'poster')
             .map(media => ({
               id: media.id.toString(), // Ensure id is a string
               src: { uri: media.media_url }, // Format for React Native's Image component
               title: media.media_name, // Use media_name as the title
             }));
-  
+
           // Map the products data from API response
-          const productsFromApi = data.products.map(product => ({
+          const productsFromApi = data.home_media.products.map(product => ({
             title: product.level_name, // Maps to title
             price: product.price,       // Maps to price
             rating: product.ratings || 'N/A', // Use a default value if ratings are null
-            image: { uri: "https://tse4.mm.bing.net/th?id=OIP.otL_xl9GgC9YS2m4ObNdwgHaHa&pid=Api&P=0&h=180" } // Use image URLs directly
+            image: { uri: product.image_url }, // Assuming you have image_url in your product
           }));
 
-          const testimonialsFromApi = data.feedbacks.map(feedback => ({
+          const testimonialsFromApi = data.home_media.feedbacks.map(feedback => ({
             id: feedback.id.toString(), // Ensure id is a string
             image: { uri: feedback.media_url }, // Use media_url for the image
             content: feedback.review_description, // Map review_description to content
           }));
-  
+
           // Set the filtered posters and products
-          setPosters(filteredPosters); 
-          setProducts(productsFromApi); 
+          await AsyncStorage.setItem('allProducts', JSON.stringify(productsFromApi));
+          await AsyncStorage.setItem('allFeedbacks', JSON.stringify(testimonialsFromApi));
+          await AsyncStorage.setItem('allInfo', JSON.stringify(data.student_info));
+
+          setPosters(filteredPosters);
+          setProducts(productsFromApi);
           setFeedbacks(testimonialsFromApi);
-          
-  
         } else {
-          console.error('Error fetching data, using default values.');
+          // Handle server errors and set default values
+          console.error('Error fetching data:', response.statusText);
           setProducts(defaultProducts);
-          setPosters(defaultPosters); 
+          setPosters(defaultPosters);
           setFeedbacks(defaultTestimonials);
+          setError('Failed to fetch data, loading default values.'); // Set error message
         }
       } catch (error) {
         console.error('Error fetching data:', error);
         // Set default values if there is an error
         setProducts(defaultProducts);
-        setPosters(defaultPosters); 
+        setPosters(defaultPosters);
         setFeedbacks(defaultTestimonials);
+        setError('An error occurred while fetching data.'); // Set error message
       } finally {
-        setLoading(false);
+        setLoading(false); // Stop loading state
       }
     };
-  
+
     fetchData();
   }, []);
 
   if (loading) {
-    return <Text>Loading...</Text>;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text style={styles.loadingText}>Loading data, please wait...</Text>
+      </View>
+    );
   }
 
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
   const handlePosterPress = (index: number) => {
     console.log(`Poster ${index + 1} clicked: ${posters[index].title}`);
   };

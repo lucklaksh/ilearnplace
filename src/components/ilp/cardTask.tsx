@@ -26,9 +26,6 @@ const Card = (props: Props) => {
     if (onPress) {
       onPress(item, event?.nativeEvent);
     }
-
-    // Navigate to the task dashboard when the card is pressed
-    router.push('/taskDashboard');
   };
 
   const { item, isHidden, animateOnDidMount } = props;

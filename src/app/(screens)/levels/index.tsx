@@ -52,7 +52,6 @@ export default function GameSelection() {
 
   const handlePress = async (level) => {
     try {
-      console.log(level)
       await AsyncStorage.setItem('selectedlevel', JSON.stringify(level));
       router.push('/product'); 
     } catch (error) {

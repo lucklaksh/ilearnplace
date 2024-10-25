@@ -1,26 +1,127 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity ,Dimensions,Linking} from 'react-native';
 import { useRouter } from 'expo-router';
 import ImageSlider from "@components/ilp/imageSlider";
 import PriceTag from '@/components/ilp/priceTag';
 import ProductCard from "@components/ilp/productCard";
-import { ImageComponent } from 'react-native';
+import { ImageComponent, ActivityIndicator } from 'react-native';
 import ExpandableText from '@/components/ilp/overview';
 import ImageGalleryCard from "@components/ilp/galaryCard";
 import VideoCard from '@/components/ilp/videoCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import ProductFooter from '@/components/ilp/productFooter';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import ProductList from "@components/ilp/productCard";
 
+interface Poster {
+  id: string;
+  src: any; 
+  title: string;
+}
 // Main Product Page Component
 const ProductPage = () => {
   const [showChatButton, setShowChatButton] = useState(false);
   const router = useRouter()
-  const posters = [
+
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedLevel, setSelectedLevel] = useState(null);
+  const [gallery, setGallery] = useState([]);
+  const [features, setFeatures] = useState([]);
+  const [components, setComponents] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
+
+  function calculateDiscountedPrice(price: number, discount: number): number {
+    const discountRate = discount / 100;
+    const discountAmount = price * discountRate;
+    const finalPrice = price - discountAmount;
+  
+    // Round up to the nearest integer
+    return Math.ceil(finalPrice);
+  }
+ 
+  
+
+  const fetchProduct = async () => {
+    try {
+      setLoading(true);
+
+      // Retrieve data from AsyncStorage
+      const allInfo = await AsyncStorage.getItem('allInfo');
+      const selectedLevelData = await AsyncStorage.getItem('selectedlevel');
+      const product = await AsyncStorage.getItem('allProducts');
+      const feedback = await AsyncStorage.getItem('allFeedbacks');
+
+      if (!allInfo || !selectedLevelData || !product || !feedback) {
+        throw new Error('Missing game data or selected level');
+      }
+
+      // Parse the stored data
+      const parsedAllInfo = JSON.parse(allInfo);
+      const parsedSelectedLevel = JSON.parse(selectedLevelData);
+      const parsedFeedback = JSON.parse(feedback)
+      const parsedProduct = JSON.parse(product)
+
+
+      // Set the selected level in state
+      setSelectedLevel(parsedSelectedLevel);
+      setProducts(parsedProduct);
+      setFeedbacks(parsedFeedback);
+
+      console.log(parsedSelectedLevel.level_code)
+      console.log(parsedSelectedLevel.tasks)
+      // Fetch media for the selected level
+      const response = await fetch(`http://65.0.178.227:8000/ilpapi/level/media/${parsedSelectedLevel.level_code}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(response)
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch level media');
+      }
+
+      const data = await response.json();
+      setGallery(data.galary || []);
+      setFeatures(data.feature || []);
+      setComponents(data.component || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProduct();
+  }, []);
+
+  if (loading) {
+    return <ActivityIndicator size="large" color="#00BFFF" />;
+  }
+
+  if (error) {
+    return <Text style={{ color: 'red' }}>{error}</Text>;
+  }
+
+  const defaultPosters: Poster[] = [
     { id: '1', src: require('@assets/poster2.png'), title: 'Poster 1' },
     { id: '2', src: require('@assets/poster4.png'), title: 'Poster 2' },
     { id: '3', src: require('@assets/poster3.png'), title: 'Poster 3' },
   ];
 
+  const posters: Poster[] = gallery.length > 0 
+  ? gallery.map(item => ({
+      id: String(item.id),
+      src: { uri: item.media_url},
+      title: item.media_name,
+    }))
+  : defaultPosters;
+  console.log(posters)
   const handlePosterPress = (index: number) => {
     console.log(`Poster ${index + 1} clicked: ${posters[index].title}`);
   };
@@ -70,18 +171,17 @@ const ProductPage = () => {
       </TouchableOpacity>
 
       
-      {/* Product Image and Details */}
       <View style={styles.productCard}>
         <ImageSlider posters={posters} onPosterPress={handlePosterPress} />
-        <Text style={styles.productTitle}>STEM Learning Kit - Military Jeep for Kids by iLearnPlace | for Boys & Girls Aged 6+ | Boost Creativity & Problem-Solving Skills | 50+ Experiments & 12+ STEM Tasks</Text>
+        <Text style={styles.productTitle}>STEM Learning Kit - {selectedLevel.level_name} for Kids by iLearnPlace | for Boys & Girls Aged 6+ | Boost Creativity & Problem-Solving Skills | 50+ Experiments & {selectedLevel.tasks.length}+ STEM Tasks</Text>
         <Text style={styles.productSubtitle}>by iLearnPlace</Text>
       </View>
 
       <PriceTag 
-          price={3499}
-          mrp={3999}
-          discount={13}
-          ratings={4.7}
+          price={calculateDiscountedPrice(selectedLevel.price, selectedLevel.discount)}
+          mrp={selectedLevel.price}
+          discount={selectedLevel.discount}
+          ratings={selectedLevel.ratings}
           ratingCount={'1k+'}
         />
 
@@ -106,63 +206,29 @@ const ProductPage = () => {
       </View>
       
 
-      {/* Related Products Section */}
+    
       <View style={styles.relatedProductsSection}>
         <Text style={styles.relatedTitle}>Related Products You’ll Love</Text>
-        <ScrollView horizontal={true}>
-            <ProductCard
-              image= {require('@assets/poster2.png')}
-              title="Battle Field Military Jeep"
-              price="2167"
-              rating="4.7"
-            />
-            <ProductCard
-              image= {require('@assets/poster2.png')}
-              title="Battle Field Military Jeep"
-              price="2167"
-              rating="4.7"
-            />
-            <ProductCard
-              image= {require('@assets/poster2.png')}
-              title="Battle Field Military Jeep"
-              price="2167"
-              rating="4.7"
-            />
-        </ScrollView>
+        <ProductList 
+            products={products} 
+            onPosterPress={(index) => console.log(`Pressed product at index ${index}`)} 
+          />
       </View>
+
+      
       {/* Inside This Kit Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Inside This Kit</Text>
         <Text style={styles.sectionDescription}>Everything You Need for Hands-On Learning and Fun!</Text>
         <View style={styles.grid}>
-          <View style={styles.gridItem}>
-            <Image source={require('@assets/poster1.png')} style={styles.ImageComponent} />
-          </View>
-          <View style={styles.gridItem}>
-            <Image source={require('@assets/poster1.png')} style={styles.ImageComponent} />
-          </View>
-          <View style={styles.gridItem}>
-            <Image source={require('@assets/poster1.png')} style={styles.ImageComponent} />
-          </View>
-          <View style={styles.gridItem}>
-            <Image source={require('@assets/poster1.png')} style={styles.ImageComponent} />
-          </View>
-          <View style={styles.gridItem}>
-            <Image source={require('@assets/poster1.png')} style={styles.ImageComponent} />
-          </View>
-          <View style={styles.gridItem}>
-            <Image source={require('@assets/poster1.png')} style={styles.ImageComponent} />
-          </View>
-          <View style={styles.gridItem}>
-            <Image source={require('@assets/poster1.png')} style={styles.ImageComponent} />
-          </View>
-          <View style={styles.gridItem}>
-            <Image source={require('@assets/poster1.png')} style={styles.ImageComponent} />
-          </View>
-          <View style={styles.gridItem}>
-            <Image source={require('@assets/poster1.png')} style={styles.ImageComponent} />
-          </View>
-          
+          {components.map((item) => (
+            <View key={item.id} style={styles.gridItem}>
+              <Image
+                source={{ uri: item.media_url }} // Dynamically load images
+                style={styles.ImageComponent}
+              />
+            </View>
+          ))}
         </View>
       </View>
 
@@ -189,64 +255,22 @@ const ProductPage = () => {
         <Image source={require('@assets/features.jpg')} style={styles.imageFeature} resizeMode="contain"  />
       </View>
 
-      {/* Essential Features & Details */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Essential Features & Details</Text>
         <Text style={styles.sectionDescription}>Unlock Learning and Fun with our STEM Kit</Text>
         <Image source={require('@assets/features1.jpg')} style={styles.imageFeature} resizeMode="contain"  />
       
       </View>
-
-      {/* Gamified Learning Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Gamified Learning</Text>
-        <Text style={styles.sectionText}>
-          iLearnPlace uses gamification to make learning fun and interactive, keeping students engaged while enhancing their understanding of key concepts through challenges and rewards.
-        </Text>
-        <Image source={require('@assets/gamifiedLearning.jpg')} style={styles.image} />
-      </View>
-
-      {/* Hands-On Learning Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Hands-On Learning</Text>
-        <Text style={styles.sectionText}>
-          Through interactive STEM kits and real-world projects, students can apply complex concepts in practical ways, making learning more meaningful and enjoyable.
-        </Text>
-        <Image source={require('@assets/handson.jpg')} style={styles.image} />
-      </View>
-
-      {/* Project-Based Learning Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Project-Based Learning</Text>
-        <Text style={styles.sectionText}>
-          Students work on exciting projects like building robots or designing smart cities, which help them see the real-world applications of their knowledge.
-        </Text>
-        <Image source={require('@assets/image-jeep.png')} style={styles.image} />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Skill Development</Text>
-        <Text style={styles.sectionText}>
-        iLearnPlace fosters critical skills like problem-solving, creativity, and teamwork, preparing students for success in modern, tech-driven careers.
-        </Text>
-        <Image source={require('@assets/skillDevlop.jpg')} style={styles.image} />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Future Readiness</Text>
-        <Text style={styles.sectionText}>
-        With a focus on emerging technologies, iLearnPlace prepares students for future STEM careers by aligning its programs with the demands of the 21st-century job market.
-        </Text>
-        <Image source={require('@assets/futureReadiness.jpg')} style={styles.image} />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Learning Enrichment</Text>
-        <Text style={styles.sectionText}>
-        Enjoy Free Access to Video Lectures, Study Notes, and Engaging Tasks for Maximum Benefit!
-        </Text>
-        <Image source={require('@assets/learningEnrich.jpg')} style={styles.image} />
-      </View>
+      {features.map((feature) => (
+        <View key={feature.id} style={styles.section}>
+          <Text style={styles.sectionTitle}>{feature.media_name}</Text>
+          <Text style={styles.sectionText}>{feature.media_description}</Text>
+          <Image
+            source={{ uri: feature.media_url }}
+            style={styles.image}
+          />
+        </View>
+      ))}
 
       {/* ISPL League Section */}
       <View style={styles.section}>
@@ -269,8 +293,12 @@ const ProductPage = () => {
         <Text style={styles.sectionSubtitle}>
           Unlock the Genius Behind Every Innovation with Cutting-Edge STEM Creations
         </Text>
+        <ProductList 
+            products={products} 
+            onPosterPress={(index) => console.log(`Pressed product at index ${index}`)} 
+          />
         
-        <ScrollView horizontal={true}>
+        {/* <ScrollView horizontal={true}>
             <ProductCard
               image= {require('@assets/poster2.png')}
               title="Battle Field Military Jeep"
@@ -289,29 +317,25 @@ const ProductPage = () => {
               price="2167"
               rating="4.7"
             />
-        </ScrollView>
+        </ScrollView> */}
       </View>
 
       {/* Share Your Experience Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Share your Experience</Text>
         <Text style={styles.sectionSubtitle}>Real Stories, Memorable Childhoods</Text>
-        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
+          <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
             <View style={styles.storySection}>
-              <ImageGalleryCard
-                image={require('@assets/poster2.png')}
-                content='"Inspire children to think for themselves, not just follow what they are told."'
-              />
-              <ImageGalleryCard
-                image={require('@assets/poster2.png')}
-                content='"Inspire children to think for themselves, not just follow what they are told."'
-              />
-              <ImageGalleryCard
-                image={require('@assets/poster2.png')}
-                content='"Inspire children to think for themselves, not just follow what they are told."'
-              />
+                {feedbacks.map((feedback) => (
+                    <ImageGalleryCard
+                        key={feedback.id} // Ensure each card has a unique key
+                        image={feedback.image} // Assuming feedback.image contains the image source
+                        content={feedback.content} // Feedback content
+                    />
+                ))}
             </View>
-          </ScrollView>
+        </ScrollView>
+
         <TouchableOpacity style={styles.reviewButton}>
           <Text style={styles.reviewButtonText}>Write a review</Text>
         </TouchableOpacity>
@@ -324,7 +348,6 @@ const ProductPage = () => {
         <VideoCard videoUri="https://www.w3schools.com/html/mov_bbb.mp4" title="Video 1" />
         <VideoCard videoUri="https://www.w3schools.com/html/movie.mp4" title="Video 2" />
         <VideoCard videoUri="https://www.w3schools.com/html/mov_bbb.mp4" title="Video 3" />
-        {/* Add more VideoCards as needed */}
       </ScrollView>
     </View>
     <ProductFooter />

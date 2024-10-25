@@ -1,14 +1,46 @@
-import React from 'react';
-import { View, Button, ScrollView, Linking } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, Linking, ActivityIndicator } from 'react-native';
 import TaskCard from '@components/ilp/cardTask'; // Ensure this path is correct
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const App = () => {
-  const pdfs = [
-    { title: "Eloquent JavaScript", pdfUrl: 'https://eloquentjavascript.net/Eloquent_JavaScript.pdf', image: require('@assets/task-notes1.png') },
-    { title: "React Native Documentation", pdfUrl: 'http://www.africau.edu/images/default/sample.pdf', image: require('@assets/task-notes1.png') },
-    { title: "JavaScript The Good Parts", pdfUrl: 'https://www.pdfdrive.com/download.pdf?id=18201979&h=b6c94a08e8235e8611d98200f4c172d2&u=cache&ext=pdf', image: require('@assets/task-notes1.png') },
-    // Add more PDFs here
-  ];
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [pdfs, setPdfs] = useState([]);
+
+  const fetchTask = async () => {
+    try {
+      setLoading(true);
+      const selectedTaskData = await AsyncStorage.getItem('selectedTask');
+      if (!selectedTaskData) {
+        throw new Error('Missing game data or selected task');
+      }
+      const parsedSelectedTask = JSON.parse(selectedTaskData);
+      setSelectedTask(parsedSelectedTask);
+
+      // Extract PDFs from the task media
+      const pdfList = parsedSelectedTask.task_media
+        .filter(media => media.media_type === 'document')
+        .map(media => ({
+          title: media.media_title,
+          pdfUrl: media.media_path,
+          image: require('@assets/task-notes1.png'), // Use a static image
+        }));
+
+      setPdfs(pdfList);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTask();
+  }, []);
 
   const handleCardPress = async (pdfUrl) => {
     const supported = await Linking.canOpenURL(pdfUrl);
@@ -19,17 +51,29 @@ const App = () => {
     }
   };
 
+  if (loading) {
+    return <ActivityIndicator size="large" color="#00BFFF" />;
+  }
+
+  if (error) {
+    return <Text style={{ color: 'red' }}>{error}</Text>;
+  }
+
   return (
     <ScrollView>
       <View>
-        {pdfs.map((pdf, index) => (
-          <TaskCard
-            key={index}
-            item={pdf}  // Pass the PDF object
-            isHidden={false}
-            onPress={() => handleCardPress(pdf.pdfUrl)}  // Handle card press to open the PDF
-          />
-        ))}
+        {pdfs.length > 0 ? (
+          pdfs.map((pdf, index) => (
+            <TaskCard
+              key={index}
+              item={pdf} // Pass the PDF object
+              isHidden={false}
+              onPress={() => handleCardPress(pdf.pdfUrl)} // Handle card press to open the PDF
+            />
+          ))
+        ) : (
+          <Text style={{ textAlign: 'center', margin: 20 }}>No PDFs available</Text>
+        )}
       </View>
     </ScrollView>
   );

@@ -11,35 +11,22 @@ export default function GameCategories() {
 
   useEffect(() => {
     const fetchGameCategories = async () => {
-      try {
-        const token = await AsyncStorage.getItem('authToken'); // Retrieve the token from AsyncStorage
-        if (!token) {
-          Alert.alert('Error', 'You must be logged in to access game categories.');
-          return;
-        }
+        try {
+          const allInfoString = await AsyncStorage.getItem('allInfo'); // Retrieve the 'allInfo' string from AsyncStorage
+          if (!allInfoString) {
+            Alert.alert('Error', 'You must be logged in to access game categories.');
+            return;
+          }
 
-        const response = await fetch('http://65.0.178.227:8000/ilpapi/allstudentinfo', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `${token}`, // Use Bearer token format
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch game categories');
-        }
-
-        const data = await response.json();
-        await AsyncStorage.setItem('allInfo', JSON.stringify(data));
-        const gameData = data.game; 
+        const allInfo = JSON.parse(allInfoString); 
+        const gameData = allInfo.game; 
+        console.log(gameData)
         const categories = gameData.map((game) => ({
           id: game.id,
           game_name: game.game_name,
           game_type: game.game_type,
-          game_count: game.levels.length, // Count the number of levels in each game
+          game_count: game.levels.length,
         }));
-        console.log(categories);
         
         setGameCategories(categories); // Assuming the API returns a 'game' field
       } catch (err) {
@@ -61,6 +48,7 @@ export default function GameCategories() {
       console.error('Failed to store game:', error);
     }
   };
+
 
   if (loading) {
     return <ActivityIndicator size="large" color="#00BFFF" style={{ flex: 1 }} />; // Show loading indicator
@@ -127,3 +115,8 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 });
+
+
+
+
+

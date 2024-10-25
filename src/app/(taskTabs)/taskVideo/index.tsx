@@ -1,9 +1,49 @@
 import React from "react";
-import { SafeAreaView, ScrollView, Text, StyleSheet, View } from "react-native";
+import { SafeAreaView, ScrollView, Text, StyleSheet, View, ActivityIndicator } from "react-native";
 import VideoCard from "@/components/ilp/videoCard";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import { useState, useEffect } from "react";
 
 const App = () => {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
+
+  const fetchTask = async () => {
+    try {
+      setLoading(true);
+      const selectedTaskData = await AsyncStorage.getItem('selectedTask');
+      if (!selectedTaskData) {
+        throw new Error('Missing game data or selected task');
+      }
+      const parsedSelectedTask = JSON.parse(selectedTaskData);
+      setSelectedTask(parsedSelectedTask);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTask();
+  }, []);
+
+  const handleCardPress = () => {
+    console.log('Card pressed');
+  };
+
+  if (loading) {
+    return <ActivityIndicator size="large" color="#00BFFF" />;
+  }
+
+  if (error) {
+    return <Text style={{ color: 'red' }}>{error}</Text>;
+  }
+
   return (
     <LinearGradient
       style={styles.container}
@@ -14,12 +54,16 @@ const App = () => {
         <Text style={styles.sectionTitle}>Featured Videos</Text>
 
         <View style={styles.videoList}>
-          <VideoCard videoUri="https://www.w3schools.com/html/mov_bbb.mp4" title="Task Description-01" />
-          <VideoCard videoUri="https://www.w3schools.com/html/movie.mp4" title="Unboxing" />
-          <VideoCard videoUri="https://www.w3schools.com/html/mov_bbb.mp4" title="STEM Concept-01" />
-          <VideoCard videoUri="https://www.w3schools.com/html/mov_bbb.mp4" title="STEM Concept-02" />
-          <VideoCard videoUri="https://www.w3schools.com/html/mov_bbb.mp4" title="STEM Concept-03" />
-          <VideoCard videoUri="https://www.w3schools.com/html/mov_bbb.mp4" title="STEM Concept-04" />
+          {selectedTask.task_media
+            ?.filter((media) => media.media_type === 'video') // Filter videos only
+            .map((media, index) => (
+              <VideoCard
+                key={index}
+                videoUri={media.media_path} // Assuming media_url contains the video path
+                title={media.media_title} // Assuming media_name contains the title
+              />
+            ))
+          }
         </View>
       </ScrollView>
     </LinearGradient>
@@ -49,47 +93,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center', // Centering the video items
-  },
-  videoItem: {
-    width: "48%", // Adjusted to fill space while allowing for margins
-    margin: 8, // Added margin to create space between video cards
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    overflow: "hidden",
-    alignItems: "center",
-    padding: 10,
-    elevation: 4, // For Android shadow effect
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4, // For iOS shadow effect
-  },
-  videoBackground: {
-    width: '100%',
-    height: 130, // Increased thumbnail size
-    marginBottom: 8,
-    borderRadius: 8, // Smooth edges for the video thumbnail
-  },
-  videoDurationContainer: {
-    position: "absolute",
-    bottom: 10,
-    right: 10,
-    backgroundColor: "#000000B0",
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  videoDuration: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  videoTitle: {
-    color: "#333333",
-    fontSize: 14,
-    fontWeight: "500",
-    textAlign: "center",
-    marginTop: 4,
   },
 });
 

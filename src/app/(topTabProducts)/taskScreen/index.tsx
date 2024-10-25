@@ -1,43 +1,79 @@
-import React, { Component } from 'react';
-import { View, Text, ScrollView, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import TaskCard from '@components/ilp/cardTask';  // Renaming the import to avoid the conflict
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert, TouchableOpacity, ImageBackground } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ScaleAndOpacity } from 'react-native-motion';
 
 export default function TaskScreen() {
-  const tasks = [
-    { title: "How To Control LED By Switch", taskNumber: "1.0", image: require('@assets/task1.jpg'), locked: false },
-    { title: "How To Connect Resistance in Series and Parallel with LED", taskNumber: "2.0", image: require('@assets/task2.jpg'), locked: true },
-    { title: "How To Control Motor By Switch", taskNumber: "3.0", image: require('@assets/task1.jpg'), locked: true },
-    { title: "How To Connect Resistance in Series and Parallel with Motor", taskNumber: "4.0", image: require('@assets/task1.jpg'), locked: true },
-    // Add more tasks here
-  ];
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [tasks, setTasks] = useState([]);
 
-  const handleCardPress = (item, event) => {
-    console.log('Card pressed:', item.title);
+  const fetchTask = async () => {
+    try {
+      setLoading(true);
+      const selectedLevelData = await AsyncStorage.getItem('selectedlevel');
+      if (!selectedLevelData) {
+        throw new Error('Missing game data or selected level');
+      }
+      const parsedSelectedLevel = JSON.parse(selectedLevelData);
+      setTasks(parsedSelectedLevel.tasks || []); // Default to an empty array if tasks is undefined
+    } catch (err) {
+      setError(err.message);
+      setTasks([]); // Reset tasks if there's an error
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchTask();
+  }, []);
+
+  const handleCardPress = async (task) => {
+    try {
+      await AsyncStorage.setItem('selectedTask', JSON.stringify(task));
+      console.log('Task saved to AsyncStorage:', task.task_name);
+      router.push('/taskDashboard'); // Navigate to task dashboard after saving the task
+    } catch (error) {
+      console.error('Failed to handle task press:', error);
+      Alert.alert('Error', 'Unable to select this task. Please try again.');
+    }
+  };
+
+  if (loading) {
+    return <ActivityIndicator size="large" color="#00BFFF" />;
+  }
+
+  if (error) {
+    console.error('Error fetching tasks:', error);
+    return <Text style={styles.errorText}>{error}</Text>;
+  }
 
   return (
     <View style={styles.container}>
-      {/* Horizontal Scroll for task numbers */}
-      <ScrollView horizontal={true} style={styles.taskNumberScroll} showsHorizontalScrollIndicator={false}>
-        {[...Array(10).keys()].map((num, index) => (
-          <TouchableOpacity key={index} style={styles.taskNumber}>
-            <Text style={styles.taskNumberText}>{num + 1}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
       {/* Task cards */}
-      <ScrollView>
-        <View>
-          {tasks.map((task, index) => (
-            <TaskCard
-              key={index}
-              item={task}  // Pass the task object
-              isHidden={false}
-              onPress={handleCardPress}  // Handle card press
-            />
-          ))}
-        </View>
+      <ScrollView contentContainerStyle={styles.scrollView}>
+        {tasks.length > 0 ? (
+          tasks.map((task) => (
+            <ScaleAndOpacity key={task.id} isHidden={false} animateOnDidMount>
+              <TouchableOpacity onPress={() => handleCardPress(task)} style={styles.touchable}>
+                <ImageBackground
+                  source={{ uri: "https://www.pngall.com/wp-content/uploads/8/Task-PNG-Image-File.png" }}
+                  style={styles.card}
+                  imageStyle={styles.image}
+                >
+                  <View style={styles.textContainer}>
+                    <Text style={styles.title}>{task.task_name}</Text>
+                  </View>
+                </ImageBackground>
+              </TouchableOpacity>
+            </ScaleAndOpacity>
+          ))
+        ) : (
+          <Text style={styles.noTasksText}>No tasks available</Text>
+        )}
       </ScrollView>
     </View>
   );
@@ -47,32 +83,57 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#E5F6FD',
+    padding: 10,
   },
-  taskNumberScroll: {
-    marginTop: 10,
-    paddingLeft: 10,
+  scrollView: {
+    paddingBottom: 20,
   },
-  taskNumber: {
-    backgroundColor: '#ADD8E6',
-    borderRadius: 20,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 5,
+  card: {
+    width: '100%',
+    height: 180, // Increased height from 150 to 180
+    marginBottom: 15,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3, // For Android shadow effect
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  taskNumberText: {
+  image: {
+    borderRadius: 12,
+  },
+  textContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 165, 207, 0.75)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  title: {
     fontSize: 18,
-    color: '#fff',
-  },
-  bottomNav: {
-    backgroundColor: '#73C2FB',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 15,
-  },
-  navItem: {
+    fontFamily: 'Mulish-Bold',
     color: 'white',
-    fontSize: 16,
+    textAlign: 'center',
+    letterSpacing: 1.1,
+  },
+  touchable: {
+    opacity: 1,
+  },
+  noTasksText: {
+    textAlign: 'center',
+    fontSize: 18,
+    color: '#555',
+    marginTop: 20,
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
+
